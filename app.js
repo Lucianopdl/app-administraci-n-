@@ -11,7 +11,7 @@ const setSt=t=>{$('st').textContent=t};
 const err=x=>setSt('Error: '+(x&&x.message||x));
 
 // ---------- Supabase ----------
-const configured=window.SUPABASE_URL&&!/PEGAR/.test(window.SUPABASE_URL);
+const configured=window.SUPABASE_URL&&!/PEGAR/.test(window.SUPABASE_URL)&&window.supabase;
 const sb=configured?supabase.createClient(window.SUPABASE_URL,window.SUPABASE_KEY):null;
 
 async function load(){
@@ -31,7 +31,7 @@ async function del(k,i){S[k]=S[k].filter(x=>x.id!==i);render();const {error}=awa
 // ---------- Auth ----------
 function authView(msg=''){
   $('tools').hidden=true;$('nav').innerHTML='';$('opts').hidden=true;
-  if(!configured){$('app').innerHTML='<div class="c auth"><b>Falta configurar Supabase</b><p><small>Completá <code>config.js</code> con la URL y la publishable key del proyecto.</small></p></div>';setSt('Sin configurar');return}
+  if(!configured){$('app').innerHTML='<div class="c auth"><b>Falta configurar Supabase</b><p><small>Revisá la conexión a internet o completá <code>config.js</code>.</small></p></div>';setSt('Sin configurar');return}
   setSt('Iniciá sesión');
   $('app').innerHTML=`<div class="c auth"><h3>Ingresar</h3><form onsubmit="login(event)">
    <input name="email" type="email" placeholder="Email" autocomplete="email" required>
