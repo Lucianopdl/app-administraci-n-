@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Mis Finanzas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head><body><div class="w">
+<div class="hd"><div><h1>Mis Finanzas</h1><small id="st">Cargando…</small></div>
+<div class="row" id="tools" hidden><input type="month" id="mes" onchange="mes=this.value;render()"><button onclick="menu()" title="Opciones">⋯</button></div></div>
+<div id="opts" class="c" hidden>
+ <div class="row"><b>Opciones</b><button class="x" onclick="menu()">✕</button></div>
+ <small id="who"></small>
+ <div class="row" style="flex-wrap:wrap;justify-content:flex-start;margin-top:10px">
+  <button onclick="exportar()">Exportar JSON</button>
+  <label class="btn">Importar JSON<input type="file" accept="application/json,.json" hidden onchange="importar(this)"></label>
+  <button onclick="salir()">Cerrar sesión</button>
+ </div>
+</div>
+<nav id="nav"></nav><div id="app"></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body></html>
