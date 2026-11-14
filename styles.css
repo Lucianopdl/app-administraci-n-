@@ -180,3 +180,5 @@ h2{font:500 18px/1.3 var(--serif);margin:26px 0 10px;display:flex;align-items:ce
 .lg{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12.5px;color:var(--mu)}
 .lg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px}
 .card h3{font:500 16px/1.3 var(--serif);margin:0}
+.code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--hl);border-radius:6px;padding:3px 7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:52vw}
+@media (min-width:900px){.code{max-width:380px}}

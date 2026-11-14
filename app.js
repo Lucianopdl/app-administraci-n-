@@ -42,6 +42,7 @@ const I = {
   down: '<path d="M12 4v12M6 10l6 6 6-6M4 20h16"/>', up: '<path d="M12 20V8M6 14l6-6 6 6M4 4h16"/>',
   moon: '<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>', out: '<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H3"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>', send: '<path d="M12 19V5M5 12l7-7 7 7"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>', copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>',
   plus: '<path d="M12 5v14M5 12h14"/>', check: '<path d="M5 12l5 5 9-10"/>', pen: '<path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/>',
 };
 const ic = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
@@ -66,7 +67,7 @@ const GUESS = [
 const INGRESO_RE = /^\s*\+|sueldo|salario|aguinaldo|haberes|cobr|venta|vendi|vendí|reintegro|devoluc|ingreso|changa|freelance/;
 
 const TABS = [['res', 'Resumen', 'home'], ['mov', 'Movimientos', 'list'], ['ven', 'Vencimientos', 'bell'], ['graf', 'Gráficos', 'chart'],
-  ['deu', 'Tarjetas y préstamos', 'card'], ['bud', 'Presupuesto', 'pie'], ['meta', 'Metas', 'flag'], ['fij', 'Gastos fijos', 'repeat']];
+  ['deu', 'Tarjetas y préstamos', 'card'], ['bud', 'Presupuesto', 'pie'], ['meta', 'Metas', 'flag'], ['fij', 'Gastos fijos', 'repeat'], ['auto', 'Carga automática', 'bolt']];
 const empty = () => ({ mov: [], deu: [], bud: [], meta: [], fij: [], ven: [] });
 let S = empty(), user = null, tab = ls.get('fin_tab', 'res'), mes = today().slice(0, 7), filtro = 'todos';
 if (!TABS.some(t => t[0] === tab)) tab = 'res';
@@ -218,6 +219,7 @@ function render() {
   shell(); status();
   $('app').innerHTML = V[tab]();
   if (tab === 'graf') drawCharts();
+  if (tab === 'auto' && autoTok === undefined) autoCargar();
 }
 
 // ---------- Componentes ----------
@@ -227,7 +229,7 @@ const emptyBox = (t, s) => `<div class="list"><div class="empty"><b>${t}</b>${s}
 const estadoV = d => d < 0 ? `<span class="pill bad">Vencido hace ${-d} d</span>` : d === 0 ? '<span class="pill bad">Vence hoy</span>'
   : d === 1 ? '<span class="pill wn">Mañana</span>' : d <= 5 ? `<span class="pill wn">En ${d} días</span>` : `<span class="pill">En ${d} días</span>`;
 const movRow = x => `<div class="item" data-act="edit" data-k="mov" data-id="${e(x.id)}">${av(x.cat)}
-  <div class="grow"><div class="t">${e(x.concepto)}</div><div class="s">${e(x.cat)} · ${x.fecha ? fmtF(x.fecha) : mesLargo(x.mes)}</div></div>
+  <div class="grow"><div class="t">${e(x.concepto)}</div><div class="s">${e(x.cat)} · ${x.fecha ? fmtF(x.fecha) : mesLargo(x.mes)}${x.auto ? ' · ⚡ ' + e(x.auto) : ''}</div></div>
   <div class="r"><span class="amt ${x.tipo === 'ingreso' ? 'ok' : ''}">${x.tipo === 'ingreso' ? '+' : '−'}${f(x.monto)}</span>
   <button class="pill ${x.estado === 'Pendiente' ? 'wn' : ''}" data-act="toggle" data-id="${e(x.id)}" title="Cambiar estado">${x.estado === 'Pendiente' ? 'Pendiente' : 'Pagado'}</button></div></div>`;
 const venRow = x => `<div class="item" data-act="edit" data-k="ven" data-id="${e(x.id)}">${av(x.cat)}
@@ -313,6 +315,28 @@ const V = {
       <span style="display:flex;align-items:center"><button class="icon" data-act="mes" data-d="-1" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button><button class="icon" data-act="mes" data-d="1" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></span></div>` : '') +
       (S.fij.length ? `<h2>Plantilla</h2><div class="list">${S.fij.map(x => `<div class="item" data-act="edit" data-k="fij" data-id="${e(x.id)}">${av(x.cat)}<div class="grow"><div class="t">${e(x.concepto)}</div><div class="s">${e(x.cat)}</div></div><div class="r"><span class="amt ${x.tipo === 'ingreso' ? 'ok' : ''}">${x.tipo === 'ingreso' ? '+' : '−'}${f(x.monto)}</span></div></div>`).join('')}</div>`
       : emptyBox('Sin gastos fijos', 'Cargá alquiler, servicios, sueldo… con el botón +.'));
+  },
+  auto() {
+    const url = window.SUPABASE_URL + '/functions/v1/ingesta' + (autoTok ? '?t=' + autoTok : '');
+    const val = (t, v, mono) => `<div class="row" style="margin:6px 0"><span class="s" style="flex:none">${t}</span><span style="display:flex;gap:6px;align-items:center;min-width:0"><code class="code" ${mono ? '' : 'style="font-family:inherit"'}>${e(v)}</code><button class="icon" style="width:32px;height:32px" data-act="copy" data-v="${e(v)}" aria-label="Copiar">${ic('copy')}</button></span></div>`;
+    const step = (n, t, body = '') => `<div class="item" style="cursor:default;align-items:flex-start"><span class="av" style="--c:var(--ac)">${n}</span><div class="grow" style="white-space:normal"><div class="t" style="white-space:normal">${t}</div>${body}</div></div>`;
+    return head('Carga automática', 'Cuando pagás o cobrás con Mercado Pago o MODO, el movimiento se carga solo.') +
+      `<div class="card"><div class="row"><b>Últimas notificaciones recibidas</b><button class="btn sm ghost" data-act="autorefresh">Actualizar</button></div>
+      ${autoLog === undefined ? '<p class="s">Cargando…</p>' : autoLog.length ? `<div style="margin-top:8px">${autoLog.map(l => `<div style="padding:8px 0;border-top:1px solid var(--bd)"><div class="row"><small>${e(l.app || '')} · ${new Date(l.at).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small></div><div style="font-size:13.5px">${e(l.texto)}</div><div class="${/^Cargado/.test(l.resultado) ? 'ok' : /^Ignorada/.test(l.resultado) ? 'mu' : /^Prueba/.test(l.resultado) ? 'ok' : 'bad'}" style="font-size:13px">${e(l.resultado)}</div></div>`).join('')}</div>`
+        : '<p class="s" style="margin:8px 0 0">Todavía no llegó ninguna. Seguí los pasos de abajo y tocá “Probar conexión”.</p>'}
+      <div class="acts" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn p sm" data-act="autotest" ${autoTok ? '' : 'disabled'}>Probar conexión</button></div></div>
+      <h2>Configurar en tu Android (una sola vez)</h2>
+      <div class="list">
+      ${step(1, 'Instalá <b>MacroDroid</b> desde Play Store (gratis) y abrilo.')}
+      ${step(2, 'Tocá <b>Agregar macro</b> → Disparador <b>+</b> → <b>Aplicaciones</b> → <b>Notificación</b> → <b>Notificación recibida</b>.', '<div class="s" style="white-space:normal">Elegí las apps <b>Mercado Pago</b> y <b>MODO</b>, contenido “Cualquiera”. Si te pide permiso de acceso a notificaciones, aceptalo.</div>')}
+      ${step(3, 'Acciones <b>+</b> → <b>Web / Conectividad</b> → <b>Solicitud HTTP</b>. Método <b>POST</b> y esta URL:', autoTok ? val('URL', url, true) : '<p class="s">Generando tu código…</p>')}
+      ${step(4, 'En la pestaña <b>Parámetros de consulta</b> (Query params) agregá estos 3:', `${val('app', '[app_name]', true)}${val('title', '[notification_title]', true)}${val('text', '[notification]', true)}<div class="s" style="white-space:normal">Si el texto mágico no aparece igual, tocá el botón <b>…</b> de cada valor y elegí “Nombre de la app”, “Título de la notificación” y “Texto de la notificación”.</div>`)}
+      ${step(5, 'Guardá la macro con un nombre (ej. “Mis Finanzas”). En Ajustes de Android → Batería, poné MacroDroid como <b>sin restricciones</b> para que no lo cierre.')}
+      </div>
+      <h2>Probar con una notificación de ejemplo</h2>
+      <div class="card"><input class="in" id="simTxt" placeholder="Pagaste $ 5.000 a KIOSCO EL SOL" value="Pagaste $ 2.500 a CAFE MARTINEZ"><div class="s" style="margin:6px 2px 10px;white-space:normal">Ojo: si la entiende, la carga de verdad (después la podés borrar).</div><button class="btn sm" data-act="autosim" ${autoTok ? '' : 'disabled'}>Simular</button></div>
+      <h2>Tu código</h2><div class="card"><div class="s" style="white-space:normal">Es privado: con él cualquiera podría cargar movimientos en tu cuenta. Si lo compartiste por error, generá uno nuevo.</div>
+      ${autoTok ? val('Código', autoTok, true) : ''}<button class="btn sm danger" data-act="autoregen" style="margin-top:6px">Generar código nuevo</button></div>`;
   },
   graf() {
     const m = M(), ing = sum(m, 'ingreso'), gas = sum(m, 'gasto'), ms = ult(6);
@@ -477,6 +501,11 @@ const ACT = {
   tab: el => { tab = el.dataset.tab; if (tab !== 'mov') filtro = 'todos'; ls.set('fin_tab', tab); document.body.classList.remove('drawer'); render(); scrollTo(0, 0); },
   mes: el => { const d = +el.dataset.d; mes = d ? addMes(mes, d) : today().slice(0, 7); render(); },
   fab: () => openSheet(['ven', 'deu', 'bud', 'meta', 'fij'].includes(tab) ? tab : 'mov'),
+  copy: el => copiar(el.dataset.v),
+  autotest: () => autoEnviar(''),
+  autosim: () => { const v = $('simTxt')?.value.trim(); if (!v) return toast('Escribí una notificación de ejemplo'); autoEnviar(v); },
+  autoregen: async () => { if (!confirm('¿Generar un código nuevo? El anterior deja de funcionar y vas a tener que actualizar MacroDroid.')) return; await sb.from('ingest_tokens').delete().eq('user_id', user.id); autoTok = null; autoCargar(); },
+  autorefresh: () => autoCargar(),
   edit: el => { const o = find(el.dataset.k, el.dataset.id); if (o) openSheet(el.dataset.k, o); },
   toggle: el => { const x = find('mov', el.dataset.id); if (x) put('mov', { ...x, estado: x.estado === 'Pendiente' ? 'Pagado' : 'Pendiente' }); },
   pagarV: el => pagarV(el.dataset.id),
@@ -558,6 +587,28 @@ async function pushOff() {
   } catch (x) { toast('Error: ' + (x.message || x)); }
 }
 
+// ---------- Carga automática ----------
+let autoTok, autoLog;
+async function autoCargar() {
+  let { data } = await sb.from('ingest_tokens').select('token').maybeSingle();
+  if (!data) ({ data } = await sb.from('ingest_tokens').insert({ user_id: user.id }).select('token').single());
+  autoTok = data?.token || null;
+  const r = await sb.from('ingest_log').select('at,app,texto,resultado').order('at', { ascending: false }).limit(10);
+  autoLog = r.data || [];
+  if (tab === 'auto' && !sheet) render();
+  if (autoLog.some(l => /^Cargado/.test(l.resultado))) load();
+}
+async function autoEnviar(text) {
+  try {
+    const r = await fetch(window.SUPABASE_URL + '/functions/v1/ingesta', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ t: autoTok, app: text ? 'Simulación' : 'Prueba desde la app', title: '', text }) });
+    const j = await r.json(); toast(j.resultado || j.error || 'Listo'); autoCargar();
+  } catch { toast('Sin conexión'); }
+}
+function copiar(v) {
+  (navigator.clipboard?.writeText(v) || Promise.reject()).then(() => toast('Copiado'), () => { prompt('Copiá esto:', v); });
+}
+
 // ---------- Gráficos 3D ----------
 let charts = [], chartsMod = null;
 const disposeCharts = () => { charts.forEach(d => { try { d(); } catch {} }); charts = []; };
@@ -594,7 +645,7 @@ else {
     if (ev === 'PASSWORD_RECOVERY') recovering = true;
     const prev = user?.id; user = session?.user || null;
     if (!user) { S = empty(); render(); return; }
-    if (user.id !== prev) { S = { ...empty(), ...ls.get(cacheKey(), {}) }; render(); setTimeout(load, 0); }
+    if (user.id !== prev) { autoTok = undefined; autoLog = undefined; pushOn = null; S = { ...empty(), ...ls.get(cacheKey(), {}) }; render(); setTimeout(load, 0); }
     else if (ev === 'PASSWORD_RECOVERY') render();
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && user) load(); });
