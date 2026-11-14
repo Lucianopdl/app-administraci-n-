@@ -46,3 +46,23 @@ create extension if not exists pg_cron;
 --     headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',
 --       (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')),
 --     body := '{}'::jsonb) $$);
+
+-- Carga automática desde notificaciones (función "ingesta", llamada por MacroDroid).
+create table if not exists public.ingest_tokens (
+  user_id uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  token text not null unique default encode(extensions.gen_random_bytes(18), 'hex'),
+  created_at timestamptz not null default now()
+);
+alter table public.ingest_tokens enable row level security;
+create policy "tok_select_own" on public.ingest_tokens for select to authenticated using ((select auth.uid()) = user_id);
+create policy "tok_insert_own" on public.ingest_tokens for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy "tok_delete_own" on public.ingest_tokens for delete to authenticated using ((select auth.uid()) = user_id);
+create table if not exists public.ingest_log (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  at timestamptz not null default now(),
+  app text, texto text, resultado text, item_id text
+);
+create index if not exists ingest_log_user_at on public.ingest_log (user_id, at desc);
+alter table public.ingest_log enable row level security;
+create policy "log_select_own" on public.ingest_log for select to authenticated using ((select auth.uid()) = user_id);

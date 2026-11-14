@@ -1,5 +1,5 @@
 // Cache del "shell" de la app. Los datos siempre van a Supabase (no se cachean).
-const CACHE = 'finanzas-v4';
+const CACHE = 'finanzas-v5';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'charts3d.js', 'config.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js'];
