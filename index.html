@@ -1,26 +1,43 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><title>Mis Finanzas</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a0a0e">
+<meta name="theme-color" content="#faf9f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#262624" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Finanzas">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap">
 <link rel="stylesheet" href="styles.css">
-</head><body><div class="w">
-<div class="hd"><div><h1>Mis Finanzas</h1><small id="st">Cargando…</small></div>
-<div class="row" id="tools" hidden><input type="month" id="mes" onchange="mes=this.value;render()"><button onclick="menu()" title="Opciones">⋯</button></div></div>
-<div id="opts" class="c" hidden>
- <div class="row"><b>Opciones</b><button class="x" onclick="menu()">✕</button></div>
- <small id="who"></small>
- <div class="row" style="flex-wrap:wrap;justify-content:flex-start;margin-top:10px">
-  <button onclick="exportar()">Exportar JSON</button>
-  <label class="btn">Importar JSON<input type="file" accept="application/json,.json" hidden onchange="importar(this)"></label>
-  <button onclick="salir()">Cerrar sesión</button>
- </div>
+<script>try{const t=localStorage.getItem('fin_theme');if(t)document.documentElement.dataset.theme=t}catch{}</script>
+</head><body>
+<div id="shell">
+  <aside id="side" aria-label="Secciones">
+    <div class="brand"><span class="logo">$</span><span>Mis Finanzas</span></div>
+    <nav id="nav"></nav>
+    <div class="side-foot" id="sideFoot"></div>
+  </aside>
+  <div id="scrim" data-act="menu"></div>
+  <main>
+    <header class="top">
+      <button class="icon only-mobile" data-act="menu" aria-label="Menú"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+      <div class="mes" id="mesNav" hidden>
+        <button class="icon" data-act="mes" data-d="-1" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="mes-l" data-act="mes" data-d="0" id="mesLbl"></button>
+        <button class="icon" data-act="mes" data-d="1" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <span class="sync" id="st"></span>
+    </header>
+    <div id="app" class="page"></div>
+  </main>
 </div>
-<nav id="nav"></nav><div id="app"></div></div>
+<button id="fab" data-act="fab" aria-label="Agregar" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+<div id="sheetWrap" hidden><div class="sheet-scrim" data-act="close"></div><div id="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="fileIn" accept="application/json,.json" hidden>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>

@@ -1,5 +1,7 @@
 # Mis Finanzas (PWA)
 
+Incluye carga rápida con el botón + (por ejemplo, escribís “super 45000”), vencimientos con notificaciones push, gráficos 3D, modo sin conexión con sincronización posterior y tema claro, oscuro o automático.
+
 App para administrar tus finanzas personales: ingresos, gastos, tarjetas y préstamos, presupuesto, metas de ahorro y gastos fijos. Se instala en el celular y guarda los datos en Supabase.
 
 ## Configuración
