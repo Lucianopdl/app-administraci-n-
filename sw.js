@@ -1,11 +1,12 @@
 // Cache del "shell" de la app. Los datos siempre van a Supabase (no se cachean).
-const CACHE = 'finanzas-v3';
+const CACHE = 'finanzas-v4';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'charts3d.js', 'config.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js'];
 
 self.addEventListener('install', ev => {
-  ev.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // Cada archivo por separado: si uno falla (p. ej. un CDN), el resto igual queda guardado.
+  ev.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', ev => {
   ev.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))

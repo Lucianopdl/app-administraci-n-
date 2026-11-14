@@ -118,7 +118,7 @@ export function bars(el, cats, series) {
     m.userData = { label: `${c} · ${s.label}: ${money(v)}` };
     b.group.add(m);
   }));
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(width + 0.4, 0.04, 1.2), new THREE.MeshStandardMaterial({ color: 0x777788, transparent: true, opacity: 0.35 }));
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(width + 0.4, 0.04, 1.2), new THREE.MeshStandardMaterial({ color: 0x9a9789, transparent: true, opacity: 0.3 }));
   floor.position.y = -0.02; b.group.add(floor);
   const neg = all.some(v => v < 0);
   const span = Math.max(width, 4);
