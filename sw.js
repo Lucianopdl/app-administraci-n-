@@ -1,5 +1,5 @@
 // Cache del "shell" de la app. Los datos siempre van a Supabase (no se cachean).
-const CACHE = 'finanzas-v5';
+const CACHE = 'finanzas-v6';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'charts3d.js', 'config.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js'];
@@ -16,7 +16,9 @@ self.addEventListener('activate', ev => {
 self.addEventListener('fetch', ev => {
   const req = ev.request;
   if (req.method !== 'GET' || /supabase\.co/.test(req.url)) return;
-  ev.respondWith(fetch(req).then(res => {
+  // Archivos propios: revalidar siempre con el servidor (GitHub Pages los cachea 10 min y si no, tarda en verse la versión nueva).
+  const own = new URL(req.url).origin === self.location.origin;
+  ev.respondWith(fetch(req, own ? { cache: 'no-cache' } : undefined).then(res => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
     return res;
   }).catch(() => caches.match(req)));
