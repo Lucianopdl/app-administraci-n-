@@ -8,7 +8,7 @@ const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').t
 
 // Ingreso / gasto según el verbo (en pasado, para no confundir con publicidades: "Pagá con QR…")
 const IN = /(recibiste|te (transfirieron|enviaron|pagaron|devolvieron|depositaron)|se acredito|acreditamos|ingresaron|ingreso de dinero|cobraste|te reintegramos)/;
-const OUT = /(pagaste|transferiste|enviaste|compraste|compra (aprobada|realizada)|pago (aprobado|realizado|exitoso|confirmado)|transferencia (enviada|realizada)|debitamos|se debito|retiraste|extrajiste|recargaste|cargaste)/;
+const OUT = /(realizaste (una|un) (transferencia|pago|compra)|hiciste (una|un) (transferencia|pago)|pagaste|transferiste|enviaste|compraste|compra (aprobada|realizada)|pago (aprobado|realizado|exitoso|confirmado)|transferencia (enviada|realizada)|debitamos|se debito|retiraste|extrajiste|recargaste|cargaste)/;
 const IGNORAR = /(rendimiento|rindieron|rindio|promo|descuento|sorteo|beneficio|cuotas sin interes|te prestamos|credito disponible|ofert|vence|vencimiento|resumen|record)/;
 
 const GUESS: [RegExp, string][] = [
@@ -28,7 +28,10 @@ function parse(app: string, title: string, text: string) {
   const AMT = /(?:\$|ARS)\s?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/i;
   // Se prefiere el texto (suele traer el detalle); si no tiene monto, se usa título + texto
   const src = AMT.test(text) ? text.replace(/\s+/g, ' ') : full;
-  const m = src.match(AMT);
+  // En mails largos hay varios montos (saldo, comisión…): se prefiere el que sigue a "importe/monto/total"
+  const AMT_G = new RegExp(AMT.source, 'gi');
+  const all = [...src.matchAll(AMT_G)];
+  const m = all.find((x) => /(importe|monto|total|valor|por un)\W{0,15}$/i.test(src.slice(Math.max(0, (x.index ?? 0) - 25), x.index))) ?? all[0];
   if (!m) return { error: 'sin monto' };
   const monto = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
   if (!(monto > 0)) return { error: 'monto inválido' };
@@ -38,11 +41,13 @@ function parse(app: string, title: string, text: string) {
 
   // Concepto: "… $ 5.000 a/en/de COMERCIO" o "Pagaste a COMERCIO …"
   const after = src.slice((m.index ?? 0) + m[0].length);
-  let c = after.match(/^\s*(?:a|en|de|para|al)\s+(.+?)(?=\s+(?:con|por|desde|mediante|el dia|hoy)\b|[.!|]|$)/i)?.[1]
+  const campo = full.match(/(?:destinatario|beneficiario|comercio|para|titular de destino|nombre del destinatario)\s*:?\s+([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ'. ]{2,50}?)(?=\s+(?:cbu|cvu|cuit|cuil|alias|fecha|n[uú]mero|banco|importe|monto|\d)|[.\n|]|$)/i)?.[1];
+  let c = campo ?? after.match(/^\s*(?:a|en|de|para|al)\s+(.+?)(?=\s+(?:con|por|desde|mediante|el dia|hoy)\b|[.!|]|$)/i)?.[1]
     ?? full.match(/(?:pagaste|transferiste|enviaste|compraste)\s+(?:a|en)\s+(.+?)(?=\s*(?:\$|[.!|]|$))/i)?.[1]
     ?? full.match(/de\s+(.+?)(?=\s*(?:\$|[.!|]|$))/i)?.[1]
     ?? '';
-  c = c.replace(/["*]/g, '').trim().slice(0, 60);
+  // En los mails tipo tabla (BBVA) las etiquetas quedan delante del valor: se sacan
+  c = c.replace(/["*]/g, '').replace(/^(?:(?:fecha y hora|fecha|hora|cbu|cvu|cuil|cuit|alias|n[uú]mero de referencia|referencia)\s+)+/i, '').trim().slice(0, 60);
   const sinConcepto = !c || /^\d/.test(c);
   if (sinConcepto) c = (tipo === 'ingreso' ? 'Cobro ' : 'Pago ') + app;
   c = c.length > 3 && c === c.toUpperCase() ? c.toLowerCase().replace(/(^|\s)\S/g, (x) => x.toUpperCase()) : c[0].toUpperCase() + c.slice(1);
@@ -79,7 +84,7 @@ Deno.serve(async (req) => {
   const user_id = tk.user_id;
 
   const app = String(p.app || 'Billetera').slice(0, 40);
-  const title = String(p.title || '').slice(0, 300), text = String(p.text || '').slice(0, 600);
+  const title = String(p.title || '').slice(0, 300), text = String(p.text || '').slice(0, 4000);
   const ar = new Date(Date.now() - 3 * 3600000).toISOString();
 
   let resultado: string, item_id: string | null = null;
@@ -88,8 +93,10 @@ Deno.serve(async (req) => {
     const r = parse(app, title, text);
     if ('error' in r) resultado = 'Ignorada: ' + r.error;
     else {
-      const mov = { ...r.mov, fecha: ar.slice(0, 10), mes: ar.slice(0, 7), estado: 'Pagado', auto: app };
-      item_id = 'mov_auto_' + await sha(`${user_id}|${app}|${title}|${text}|${ar.slice(0, 16)}`);
+      const f = /^\d{4}-\d{2}-\d{2}$/.test(p.fecha || '') ? p.fecha : ar.slice(0, 10);
+      const mov = { ...r.mov, fecha: f, mes: f.slice(0, 7), estado: 'Pagado', auto: app };
+      // Si el origen manda un id propio (p. ej. el id del mail), se usa para no cargar dos veces lo mismo
+      item_id = 'mov_auto_' + await sha(p.id ? `${user_id}|id|${p.id}` : `${user_id}|${app}|${title}|${text}|${ar.slice(0, 16)}`);
       const { error } = await db.from('items').upsert({ user_id, id: item_id, k: 'mov', data: { ...mov, id: item_id, k: 'mov' } }, { onConflict: 'user_id,id', ignoreDuplicates: true });
       resultado = error ? 'Error: ' + error.message : `Cargado: ${mov.tipo} $${mov.monto} · ${mov.concepto} (${mov.cat})`;
     }
