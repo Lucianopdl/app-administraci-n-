@@ -325,7 +325,16 @@ const V = {
       ${autoLog === undefined ? '<p class="s">Cargando…</p>' : autoLog.length ? `<div style="margin-top:8px">${autoLog.map(l => `<div style="padding:8px 0;border-top:1px solid var(--bd)"><div class="row"><small>${e(l.app || '')} · ${new Date(l.at).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small></div><div style="font-size:13.5px">${e(l.texto)}</div><div class="${/^Cargado/.test(l.resultado) ? 'ok' : /^Ignorada/.test(l.resultado) ? 'mu' : /^Prueba/.test(l.resultado) ? 'ok' : 'bad'}" style="font-size:13px">${e(l.resultado)}</div></div>`).join('')}</div>`
         : '<p class="s" style="margin:8px 0 0">Todavía no llegó ninguna. Seguí los pasos de abajo y tocá “Probar conexión”.</p>'}
       <div class="acts" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn p sm" data-act="autotest" ${autoTok ? '' : 'disabled'}>Probar conexión</button></div></div>
-      <h2>Configurar en tu Android (una sola vez)</h2>
+      <h2>Opción A · Desde tus mails de Gmail (recomendada)</h2>
+      <div class="list">
+      ${step(1, 'Escribí tu nombre como figura en el banco (así se ignoran las transferencias entre tus cuentas):', `<input class="in" id="miNombre" placeholder="Ej. Juan Pérez" value="${e(ls.get('fin_minombre', ''))}" style="margin-top:8px">`)}
+      ${step(2, 'Copiá el código, que ya lleva tu código personal:', `<button class="btn p sm" data-act="gscopy" style="margin-top:8px" ${autoTok ? '' : 'disabled'}>${ic('copy')}Copiar código</button>`)}
+      ${step(3, 'Desde la computadora entrá a <b>script.google.com</b> → <b>Nuevo proyecto</b>. Borrá lo que aparece, pegá el código y guardá (💾).')}
+      ${step(4, 'Arriba, en la lista de funciones, elegí <b>instalar</b> y tocá <b>▶ Ejecutar</b>.')}
+      ${step(5, 'Google te va a pedir permisos: <b>Revisar permisos</b> → elegí tu cuenta → <b>Configuración avanzada</b> → <b>Ir a Proyecto sin título</b> → <b>Permitir</b>.', '<div class="s" style="white-space:normal">Aparece ese aviso porque el programa lo creaste vos y no está verificado por Google. Solo lee los mails de bancos y billeteras.</div>')}
+      ${step(6, '¡Listo! Cada 5 minutos revisa tus mails y carga los pagos y transferencias. Los procesados quedan con la etiqueta “mis-finanzas”.')}
+      </div>
+      <h2>Opción B · Desde las notificaciones (Android + MacroDroid)</h2>
       <div class="list">
       ${step(1, 'Instalá <b>MacroDroid</b> desde Play Store (gratis) y abrilo.')}
       ${step(2, 'Tocá <b>Agregar macro</b> → Disparador <b>+</b> → <b>Aplicaciones</b> → <b>Notificación</b> → <b>Notificación recibida</b>.', '<div class="s" style="white-space:normal">Elegí las apps <b>Mercado Pago</b> y <b>MODO</b>, contenido “Cualquiera”. Si te pide permiso de acceso a notificaciones, aceptalo.</div>')}
@@ -506,6 +515,14 @@ const ACT = {
   autosim: () => { const v = $('simTxt')?.value.trim(); if (!v) return toast('Escribí una notificación de ejemplo'); autoEnviar(v); },
   autoregen: async () => { if (!confirm('¿Generar un código nuevo? El anterior deja de funcionar y vas a tener que actualizar MacroDroid.')) return; await sb.from('ingest_tokens').delete().eq('user_id', user.id); autoTok = null; autoCargar(); },
   autorefresh: () => autoCargar(),
+  gscopy: async () => {
+    const nombre = ($('miNombre')?.value || '').trim(); ls.set('fin_minombre', nombre);
+    try {
+      const r = await fetch('google-apps-script/mis-finanzas.gs', { cache: 'no-cache' }); if (!r.ok) throw 0;
+      const code = (await r.text()).replace('PEGAR_URL_CON_CODIGO', window.SUPABASE_URL + '/functions/v1/ingesta?t=' + autoTok).replace('PEGAR_TU_NOMBRE', nombre.replace(/'/g, ''));
+      copiar(code);
+    } catch { toast('No se pudo obtener el código. Revisá la conexión.'); }
+  },
   edit: el => { const o = find(el.dataset.k, el.dataset.id); if (o) openSheet(el.dataset.k, o); },
   toggle: el => { const x = find('mov', el.dataset.id); if (x) put('mov', { ...x, estado: x.estado === 'Pendiente' ? 'Pagado' : 'Pendiente' }); },
   pagarV: el => pagarV(el.dataset.id),
